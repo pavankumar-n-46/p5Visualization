@@ -3,18 +3,23 @@ const serviceUuid = "0000ffb0-0000-1000-8000-00805f9b34fb";
 let myBLE;
 let isConnected = false;
 let myValue = 0;
+let myValueFromPast = 0;
+let time = 5000;
 
 let x = [],
-  y = [],
-  segNum = 20,
-  segLength = 10;
+    y = [],
+    segNum = 20,
+    segLength = 10;
 
 for (let i = 0; i < segNum; i++) {
-  x[i] = 0;
-  y[i] = 0;
+    x[i] = 0;
+    y[i] = 0;
 }
 
 function setup() {
+    // Set up timeInterval which will copy data every 5 seconds
+    setInterval(copyOldData, time);
+
     // Create a p5ble class
     myBLE = new p5ble();
 
@@ -27,7 +32,7 @@ function setup() {
     stopButton.mousePressed(stopNotifications);
 
     //canvas setup
-    createCanvas(710, 400);
+    createCanvas(windowWidth, windowHeight);
     strokeWeight(9);
     stroke(255, 100);
 }
@@ -54,7 +59,6 @@ function gotCharacteristics(error, characteristics) {
 function handleNotifications(data) {
     console.log('data: ', data);
     myValue = data;
-    amplitude = data;
 }
 
 // A function to stop notifications
@@ -62,12 +66,17 @@ function stopNotifications() {
     myBLE.stopNotifications(myCharacteristic);
 }
 
+// A function to copy data from myValue to myValue from past every 5 seconds
+function copyOldData() {
+    myValueFromPast = myValue;
+}
+
 function draw() {
     background(0);
     //append the sensor data here.
-    dragSegment(0, myValue, myValue - 5);
+    dragSegment(0, myValue, myValueFromPast);
     for (let i = 0; i < x.length - 1; i++) {
-      dragSegment(i + 1, x[i], y[i]);
+        dragSegment(i + 1, x[i], y[i]);
     }
 }
 
@@ -78,12 +87,12 @@ function dragSegment(i, xin, yin) {
     x[i] = xin - cos(angle) * segLength;
     y[i] = yin - sin(angle) * segLength;
     segment(x[i], y[i], angle);
-  }
-  
-  function segment(x, y, a) {
+}
+
+function segment(x, y, a) {
     push();
     translate(x, y);
     rotate(a);
     line(0, 0, segLength, 0);
     pop();
-  }
+}
