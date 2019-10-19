@@ -2,9 +2,10 @@
 const serviceUuid = "0000ffb0-0000-1000-8000-00805f9b34fb";
 let myBLE;
 let isConnected = false;
+let dataBuffer = [];
 let myValue = 0;
 let myValueFromPast = 0;
-let time = 5000;
+let time = 5000; // Lets adjust time interval sensor data is copied 
 
 let x = [],
     y = [],
@@ -37,6 +38,24 @@ function setup() {
     stroke(255, 100);
 }
 
+
+function avg(v) {
+    return v.reduce((a, b) => a + b, 0) / v.length;
+}
+
+function smoothOut(vector, variance) {
+    var t_avg = avg(vector) * variance;
+    var ret = Array(vector.length);
+    for (var i = 0; i < vector.length; i++) {
+        (function () {
+            var prev = i > 0 ? ret[i - 1] : vector[i];
+            var next = i < vector.length ? vector[i] : vector[i - 1];
+            ret[i] = avg([t_avg, avg([prev, vector[i], next])]);
+        })();
+    }
+    return ret;
+}
+
 function connectAndStartNotify() {
     // Connect to a device by passing the service UUID
     myBLE.connect(serviceUuid, gotCharacteristics);
@@ -58,7 +77,19 @@ function gotCharacteristics(error, characteristics) {
 // A function that will be called once got characteristics
 function handleNotifications(data) {
     console.log('data: ', data);
-    myValue = data * 2;
+    if (dataBuffer.length < 8) {
+        dataBuffer.push(data);
+    }
+    else {
+        dataBuffer.shift()
+        dataBuffer.push(data);
+    }
+    //myValue = data;
+    if (dataBuffer.length > 7) {
+        var smoothData = smoothOut(dataBuffer, 0.85);
+        myValue = smoothData[0];
+    }
+
 }
 
 // A function to stop notifications
