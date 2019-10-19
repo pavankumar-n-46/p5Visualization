@@ -9,7 +9,7 @@ let time = 5000;
 let x = [],
     y = [],
     segNum = 20,
-    segLength = 10;
+    segLength = 18;
 
 for (let i = 0; i < segNum; i++) {
     x[i] = 0;
@@ -58,7 +58,7 @@ function gotCharacteristics(error, characteristics) {
 // A function that will be called once got characteristics
 function handleNotifications(data) {
     console.log('data: ', data);
-    myValue = data;
+    myValue = data * 2;
 }
 
 // A function to stop notifications
