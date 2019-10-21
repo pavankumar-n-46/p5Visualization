@@ -1,7 +1,4 @@
-// The serviceUuid must match the serviceUuid of the device you would like to connect
-const serviceUuid = "0000ffb0-0000-1000-8000-00805f9b34fb";
-let myBLE;
-let isConnected = false;
+
 let dataBuffer = [];
 let myValue = 0;
 let myValueFromPast = 0;
@@ -21,9 +18,6 @@ function setup() {
     // Set up timeInterval which will copy data every 5 seconds
     setInterval(copyOldData, time);
 
-    // Create a p5ble class
-    myBLE = new p5ble();
-
     // Create a 'Connect and Start Notifications' button
     const connectButton = createButton('Connect and Start Notifications')
     connectButton.mousePressed(connectAndStartNotify);
@@ -38,11 +32,78 @@ function setup() {
     stroke(255, 100);
 }
 
+function connectAndStartNotify() {
+    let serviceUuid = '0xffb0';
+    if (serviceUuid.startsWith('0x')) {
+        serviceUuid = parseInt(serviceUuid);
+    }
 
+    let characteristicUuid = '0xffb3';
+    if (characteristicUuid.startsWith('0x')) {
+        characteristicUuid = parseInt(characteristicUuid);
+    }
+
+    log('Requesting Bluetooth Device...');
+    navigator.bluetooth.requestDevice({ filters: [{ services: [serviceUuid] }] })
+        .then(device => {
+            log('Connecting to GATT Server...');
+            return device.gatt.connect();
+        })
+        .then(server => {
+            log('Getting Service...');
+            return server.getPrimaryService(serviceUuid);
+        })
+        .then(service => {
+            log('Getting Characteristic...');
+            return service.getCharacteristic(characteristicUuid);
+        })
+        .then(characteristic => {
+            myCharacteristic = characteristic;
+            return myCharacteristic.startNotifications().then(_ => {
+                log('> Notifications started');
+                myCharacteristic.addEventListener('characteristicvaluechanged',
+                    handleNotifications);
+            });
+        })
+        .catch(error => {
+            log('Argh! ' + error);
+        });
+}
+
+function stopNotifications() {
+    if (myCharacteristic) {
+        myCharacteristic.stopNotifications()
+            .then(_ => {        
+                log('> Notifications stopped');
+                myCharacteristic.removeEventListener('characteristicvaluechanged',
+                    handleNotifications);
+            })
+            .catch(error => {
+                log('Argh! ' + error);
+            });
+    }
+}
+
+function handleNotifications(event) {
+
+    let value = event.target.value;
+    let a = [];
+    // Convert raw data bytes to hex values just for the sake of showing something.
+    // In the "real" world, you'd use data.getUint8, data.getUint16 or even
+    // TextDecoder to process raw data bytes.
+    for (let i = 0; i < 1; i++) {
+        console.log(value.getUint8(i).toString());
+        myValue = parseInt(value.getUint8(i).toString());
+      }
+
+}
+
+// Utility function
 function avg(v) {
     return v.reduce((a, b) => a + b, 0) / v.length;
 }
 
+// Function to smoothout value in array
 function smoothOut(vector, variance) {
     var t_avg = avg(vector) * variance;
     var ret = Array(vector.length);
@@ -56,48 +117,6 @@ function smoothOut(vector, variance) {
     return ret;
 }
 
-function connectAndStartNotify() {
-    // Connect to a device by passing the service UUID
-    myBLE.connect(serviceUuid, gotCharacteristics);
-}
-
-// A function that will be called once got characteristics
-function gotCharacteristics(error, characteristics) {
-    if (error) console.log('error: ', error);
-    console.log('characteristics: ', characteristics);
-    myCharacteristic = characteristics[0];
-    // Start notifications on the first characteristic by passing the characteristic
-    // And a callback function to handle notifications
-    myBLE.startNotifications(myCharacteristic, handleNotifications);
-    // You can also pass in the dataType
-    // Options: 'unit8', 'uint16', 'uint32', 'int8', 'int16', 'int32', 'float32', 'float64', 'string'
-    // myBLE.startNotifications(myCharacteristic, handleNotifications, 'string');
-}
-
-// A function that will be called once got characteristics
-function handleNotifications(data) {
-    console.log('data: ', data);
-    if (dataBuffer.length < 8) {
-        dataBuffer.push(data);
-    }
-    else {
-        dataBuffer.shift()
-        dataBuffer.push(data);
-    }
-    //myValue = data;
-    if (dataBuffer.length > 7) {
-        var smoothData = smoothOut(dataBuffer, 0.85);
-        myValue = smoothData[0];
-    }
-
-}
-
-// A function to stop notifications
-function stopNotifications() {
-    myBLE.stopNotifications(myCharacteristic);
-}
-
-// A function to copy data from myValue to myValue from past every 5 seconds
 function copyOldData() {
     myValueFromPast = myValue;
 }
